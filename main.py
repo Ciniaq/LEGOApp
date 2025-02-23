@@ -56,7 +56,7 @@ if __name__ == '__main__':
                     image.putpixel((x, y), (0, 0, 0))
                 else:
                     image.putpixel((x, y), find_nearest_color(color))
-
+        image.save(masked.split('.')[0] + '_modified.jpg')
         plt.imshow(image)
         plt.axis('off')
         plt.show()
