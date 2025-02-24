@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.setrecursionlimit(5000)
 
 csv_name = 'LegoParts.csv'
 colors_dict = {}
@@ -40,52 +39,9 @@ def find_nearest_color(input_color):
             nearest_color = color
     return nearest_color, float(nearest_value)
 
-def iterative_manage_pixel(start_x, start_y, color, image, bool_array, threshold=30):
-    stack = [(start_x, start_y)]
-    while stack:
-        x, y = stack.pop()
-        if x < 0 or y < 0 or x >= image.size[0] or y >= image.size[1]:
-            continue
-        if bool_array[y][x]:
-            continue
-        pixel_color = image.getpixel((x, y))
-        distance = np.linalg.norm(np.array(color) - np.array(pixel_color))
-        if distance < threshold:
-            image.putpixel((x, y), color)
-            bool_array[y][x] = True
-            stack.append((x - 1, y))  # Left
-            stack.append((x + 1, y))  # Right
-            stack.append((x, y - 1))  # Up
-            stack.append((x, y + 1))  # Down
-
-def rec_manage_pixel(x, y, color, image, bool_array, direction):
-    if x < 0 or y < 0 or x >= image.size[0] or y >= image.size[1]:
-        return
-    if not bool_array[y][x]:
-        pixel_color = image.getpixel((x, y))
-        distance = np.linalg.norm(np.array(color) - np.array(pixel_color))
-        if distance < 10:
-            image.putpixel((x, y), color)
-            bool_array[y][x] = True
-            if direction != 'xup':
-                rec_manage_pixel(x - 1, y, color, image, bool_array, 'xdown')
-            if direction != 'xdown':
-                rec_manage_pixel(x+1, y, color, image, bool_array, 'xup')
-            if direction != 'yup':
-                rec_manage_pixel(x, y - 1, color, image, bool_array, 'ydown')
-            if direction != 'ydown':
-                rec_manage_pixel(x, y+1, color, image, bool_array, 'yup')
-
-
-
-
 if __name__ == '__main__':
     fill_colors_dict()
     fill_images_dict()
-
-    # for item in colors_dict.items():
-    #     print(item)
-        # print(str(item[0][0])+","+str(item[0][1])+","+str(item[0][2]))
 
     for key, (original, masked) in images.items():
         image = Image.open(images_path+'\\'+masked)
@@ -104,23 +60,3 @@ if __name__ == '__main__':
 
         for color in actual_colors_dict.keys():
             print(color, actual_colors_dict[color])
-
-        #
-        #
-        # image.save(masked.split('.')[0] + '_modified2.bmp')
-        # plt.imshow(image)
-        # plt.axis('off')
-        # plt.show()
-        #
-        # mono_image = Image.new('RGB', (width, height))
-        # for y in range(height):
-        #     for x in range(width):
-        #         color = (255, 255, 255) if bool_array[y, x] else (0, 0, 0)
-        #         mono_image.putpixel((x, y), color)
-        # plt.imshow(mono_image)
-        # plt.axis('off')
-        # plt.show()
-        # mono_image.save(masked.split('.')[0] + '_mono.bmp')
-        # break
-        #
-
