@@ -62,32 +62,40 @@ if __name__ == '__main__':
 
     for key, (original, masked) in images.items():
         image = Image.open(images_path + '\\' + masked)
-        image2 = Image.open(images_path + '\\' + original)
+        width, height = image.size
+
+        debug_image = Image.open(images_path + '\\' + original)
         image_array = np.array(image)
-        image_output = np.array(image2)
+        debug_output_array = np.array(debug_image)
 
         fill_actual_colors_dict(image)
 
-        for color in actual_colors_dict.keys():
-            if color == (0, 0, 0, 255):
-                continue
-            mask = cv2.inRange(image_array, color, color)
-            label_image = label(mask)
-            regions = regionprops(label_image)
-            for region in regions:
-                minr, minc, maxr, maxc = region.bbox
-                if minc == 0:
+        with open('dataset\\labels\\'+ original.split('.')[0] + '.txt', "w") as file:
+
+            for color in actual_colors_dict.keys():
+                if color == (0, 0, 0, 255):
                     continue
-                # cv2.polylines(image_output, [minr, minc, maxr, maxc], isClosed=False, color=color, thickness=2)
-                # image_output[minr:maxr, minc:maxc] = color
-                cv2.rectangle(image_output, (minc, minr), (maxc, maxr), color, 2)
-                # break
+                mask = cv2.inRange(image_array, color, color)
+                label_image = label(mask)
+                regions = regionprops(label_image)
+                for region in regions:
+                    minr, minc, maxr, maxc = region.bbox
+                    if minc == 0:
+                        continue
+                    yolo_center_x = (minc + maxc) / 2 / width
+                    yolo_center_y = (minr + maxr) / 2 / height
+                    yolo_width = (maxc - minc) / width
+                    yolo_height = (maxr - minr) / height
+                    file.write(f"{actual_colors_dict[color]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n")
 
-        image1 = Image.fromarray(image_output)
+                    cv2.rectangle(debug_output_array, (minc, minr), (maxc, maxr), color, 1)
+                    # break
+        debug_image.save('dataset\\images\\'+original)
+        image1 = Image.fromarray(debug_output_array)
         image1.show()
-        image1.save(original.split('.')[0] + '_boxes.png')
+        # image1.save(original.split('.')[0] + '_boxes.png')
 
-            # break
+            break
         break
 
 
