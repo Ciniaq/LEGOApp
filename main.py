@@ -1,17 +1,18 @@
 import math
 import os
-import pandas as pd
-from PIL import Image
+
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import sys
+import pandas as pd
+from PIL import Image
 from skimage.measure import label, regionprops
 
+# path to the csv file exported from DataTable in Unreal Engine
 csv_name = 'LegoParts.csv'
 colors_dict = {}
 actual_colors_dict = {}
 
+# path to the unreal engine Screenshots folder
 images_path = r'D:\UELego\Lego\Saved\Screenshots\WindowsEditor'
 images = {}
 
@@ -37,31 +38,31 @@ def fill_images_dict():
             images[name] = [file_name.split('_')[0] + '_original.png', file_name]
 
 
-def fill_actual_colors_dict(image):
+def fill_actual_colors_dict(input_image):
     actual_colors_dict.clear()
-    image_array = np.array(image)
+    image_array = np.array(input_image)
     pixels = image_array.reshape(-1, image_array.shape[-1])
     unique_colors = np.unique(pixels, axis=0)
 
-    for color in unique_colors:
-        color_v = (int(color[0]), int(color[1]), int(color[2]), 255)
+    for image_color in unique_colors:
+        color_v = (int(image_color[0]), int(image_color[1]), int(image_color[2]), 255)
         actual_colors_dict[color_v] = colors_dict[find_nearest_color(color_v)[0]]
 
 
 def find_nearest_color(input_color):
     nearest_value = 1000
     nearest_color = None
-    for color in colors_dict.keys():
-        distance = np.linalg.norm(np.array(input_color) - np.array(color))
+    for original_color in colors_dict.keys():
+        distance = np.linalg.norm(np.array(input_color) - np.array(original_color))
         if distance < nearest_value:
             nearest_value = distance
-            nearest_color = color
+            nearest_color = original_color
     return nearest_color, float(nearest_value)
 
 
 def boxes_overlap(box1, box2):
-    x1_min, y1_min, x1_max, y1_max = box1#.bbox
-    x2_min, y2_min, x2_max, y2_max = box2#.bbox
+    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
+    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
 
     return not (x1_max <= x2_min or x2_max <= x1_min or y1_max <= y2_min or y2_max <= y1_min)
 
@@ -70,8 +71,8 @@ def distance_between_boxes(box1, box2):
     if boxes_overlap(box1, box2):
         return 0
 
-    x1_min, y1_min, x1_max, y1_max = box1#.bbox
-    x2_min, y2_min, x2_max, y2_max = box2#.bbox
+    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
+    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
 
     dx = max(0, max(x1_min, x2_min) - min(x1_max, x2_max))
     dy = max(0, max(y1_min, y2_min) - min(y1_max, y2_max))
@@ -80,51 +81,69 @@ def distance_between_boxes(box1, box2):
 
 
 def merge_boxes(box1, box2):
-    x1_min, y1_min, x1_max, y1_max = box1#.bbox
-    x2_min, y2_min, x2_max, y2_max = box2#.bbox
+    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
+    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
 
     new_box = [min(x1_min, x2_min), min(y1_min, y2_min), max(x1_max, x2_max), max(y1_max, y2_max)]
     return new_box
 
 
-def merge_all_boxes_in_array(filtered_regions):
+def merge_all_boxes_in_array(regions_array):
     start_over = True
-    merged_array = [item.bbox for item in filtered_regions]
+    output_array = [item.bbox for item in regions_array]
 
     while start_over:
         start_over = False
-        for i in range(len(merged_array)):
-            for j in range(i + 1, len(merged_array)):
-                distance = distance_between_boxes(merged_array[i], merged_array[j])
+        for i in range(len(output_array)):
+            for j in range(i + 1, len(output_array)):
+                distance = distance_between_boxes(output_array[i], output_array[j])
                 if distance < 15:
-                    box1 = merged_array[i]
-                    box2 = merged_array.pop(j)
-                    merged_array[i] = merge_boxes(box1, box2)
+                    box1 = output_array[i]
+                    box2 = output_array.pop(j)
+                    output_array[i] = merge_boxes(box1, box2)
                     start_over = True
                     break
             if start_over:
                 break
-    return merged_array
+    return output_array
+
+
+def create_YOLO_string(region, region_color):
+    x1_min, y1_min, x1_max, y1_max = region
+
+    yolo_center_x = (y1_min + y1_max) / 2 / width
+    yolo_center_y = (x1_min + x1_max) / 2 / height
+    yolo_width = (y1_max - y1_min) / width
+    yolo_height = (x1_max - x1_min) / height
+
+    return f"{actual_colors_dict[region_color]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+
 
 if __name__ == '__main__':
     fill_colors_dict()
     fill_images_dict()
 
+    # for all images in the screenshot folder
     for key, (original, masked) in images.items():
         image = Image.open(images_path + '\\' + masked)
+        image_array = np.array(image)
         width, height = image.size
 
+        # debug variables
         debug_image = Image.open(images_path + '\\' + original)
-        image_array = np.array(image)
         debug_output_array = np.array(debug_image)
 
         fill_actual_colors_dict(image)
 
+        # create file with labels
         with open('dataset\\labels\\' + original.split('.')[0] + '.txt', "w") as file:
 
+            # for all colors in the image
             for color in actual_colors_dict.keys():
                 if color == (0, 0, 0, 255):
                     continue
+
+                # create mono mask for the color and find regions on it
                 mask = cv2.inRange(image_array, color, color)
                 label_image = label(mask)
                 regions = regionprops(label_image)
@@ -133,16 +152,11 @@ if __name__ == '__main__':
                 merged_array = merge_all_boxes_in_array(filtered_regions)
 
                 for region in merged_array:
-                    minr, minc, maxr, maxc = region
-                    if minc == 0:
-                        continue
-                    yolo_center_x = (minc + maxc) / 2 / width
-                    yolo_center_y = (minr + maxr) / 2 / height
-                    yolo_width = (maxc - minc) / width
-                    yolo_height = (maxr - minr) / height
-                    file.write(
-                        f"{actual_colors_dict[color]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n")
-                    cv2.rectangle(debug_output_array, (minc, minr), (maxc, maxr), color, 1)
+                    file.write(create_YOLO_string(region, color))
+
+                    # debug image draw bounding boxes
+                    x1_min, y1_min, x1_max, y1_max = region
+                    cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 1)
 
         debug_image.save('dataset\\images\\' + original)
         image1 = Image.fromarray(debug_output_array)
