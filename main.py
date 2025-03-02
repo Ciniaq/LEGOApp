@@ -11,6 +11,7 @@ from skimage.measure import label, regionprops
 csv_name = 'LegoParts.csv'
 colors_dict = {}
 actual_colors_dict = {}
+lego_id_dict = {}
 
 # path to the unreal engine Screenshots folder
 images_path = r'D:\UELego\Lego\Saved\Screenshots\WindowsEditor'
@@ -18,6 +19,23 @@ images = {}
 
 dataset_images_path = r'dataset/images'
 dataset_labels_path = r'dataset/labels'
+
+
+def create_labels_file():
+    lego_parts_df = pd.read_csv(csv_name)
+    legos = lego_parts_df[['---']]
+    i = 0
+    with open('dataset\\labels\\labels.txt', "w") as labels_file:
+        for index, row in legos.iterrows():
+            # print(f"{i}: {row['---']}")
+            labels_file.write(f"{i}: {row['---']}\n")
+            lego_id_dict[row['---']] = i
+            i += 1
+
+    # string_foo = ""
+    # for item in lego_id_dict.keys():
+    #     string_foo += f"\"{item}\", "
+    # print(f"[{string_foo}]")
 
 
 def fill_colors_dict():
@@ -115,17 +133,18 @@ def create_YOLO_string(region, region_color):
     yolo_center_y = (x1_min + x1_max) / 2 / height
     yolo_width = (y1_max - y1_min) / width
     yolo_height = (x1_max - x1_min) / height
-
-    return f"{actual_colors_dict[region_color]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    return f"{lego_id_dict[actual_colors_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
 
 
 if __name__ == '__main__':
     fill_colors_dict()
     fill_images_dict()
+    create_labels_file()
 
     # for all images in the screenshot folder
     for key, (original, masked) in images.items():
         image = Image.open(images_path + '\\' + masked)
+        print(masked)
         image_array = np.array(image)
         width, height = image.size
 
