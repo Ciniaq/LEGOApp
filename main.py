@@ -61,8 +61,8 @@ def find_nearest_color(input_color):
 
 
 def boxes_overlap(box1, box2):
-    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
-    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
+    x1_min, y1_min, x1_max, y1_max = box1
+    x2_min, y2_min, x2_max, y2_max = box2
 
     return not (x1_max <= x2_min or x2_max <= x1_min or y1_max <= y2_min or y2_max <= y1_min)
 
@@ -71,8 +71,8 @@ def distance_between_boxes(box1, box2):
     if boxes_overlap(box1, box2):
         return 0
 
-    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
-    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
+    x1_min, y1_min, x1_max, y1_max = box1
+    x2_min, y2_min, x2_max, y2_max = box2
 
     dx = max(0, max(x1_min, x2_min) - min(x1_max, x2_max))
     dy = max(0, max(y1_min, y2_min) - min(y1_max, y2_max))
@@ -81,8 +81,8 @@ def distance_between_boxes(box1, box2):
 
 
 def merge_boxes(box1, box2):
-    x1_min, y1_min, x1_max, y1_max = box1  # .bbox
-    x2_min, y2_min, x2_max, y2_max = box2  # .bbox
+    x1_min, y1_min, x1_max, y1_max = box1
+    x2_min, y2_min, x2_max, y2_max = box2
 
     new_box = [min(x1_min, x2_min), min(y1_min, y2_min), max(x1_max, x2_max), max(y1_max, y2_max)]
     return new_box
