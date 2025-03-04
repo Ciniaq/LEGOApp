@@ -167,17 +167,23 @@ if __name__ == '__main__':
                 label_image = label(mask)
                 regions = regionprops(label_image)
 
-                filtered_regions = [region for region in regions if region.area >= 30]
-                merged_array = merge_all_boxes_in_array(filtered_regions)
+                for region in regions:
+                    print(region.area)
 
-                for region in merged_array:
-                    file.write(create_YOLO_string(region, color))
+                avg_area = sum([region.area for region in regions]) / len(regions)
+                print(f"{actual_colors_dict[color]}: {avg_area}")
 
-                    # debug image draw bounding boxes
-                    x1_min, y1_min, x1_max, y1_max = region
-                    cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 1)
+                # filtered_regions = [region for region in regions if region.area >= 30]
+                # merged_array = merge_all_boxes_in_array(filtered_regions)
+                #
+                # for region in merged_array:
+                #     file.write(create_YOLO_string(region, color))
+                #
+                #     # debug image draw bounding boxes
+                #     x1_min, y1_min, x1_max, y1_max = region
+                #     cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 1)
 
-        debug_image.save('dataset\\images\\' + original)
-        image1 = Image.fromarray(debug_output_array)
-        image1.show()
+        # debug_image.save('dataset\\images\\' + original)
+        # image1 = Image.fromarray(debug_output_array)
+        # image1.show()
         # image1.save("image_archive\\foo.png")
