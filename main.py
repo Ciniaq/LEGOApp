@@ -9,13 +9,14 @@ from skimage.measure import label, regionprops
 
 # path to the csv file exported from DataTable in Unreal Engine
 csv_name = 'LegoParts.csv'
-colors_dict = {}
-actual_colors_dict = {}
-lego_id_dict = {}
+csv_color_2_lego_dict = {}  # <scv_color, lego_id>
+image_color_2_lego_dict = {}  # <image_color, lego>
+lego_2_yoloID_dict = {}  # <lego_id, yolo_id>
+lego_2_avg_area_dict = {}  # <lego_id, area>
 
 # path to the unreal engine Screenshots folder
 images_path = r'D:\UELego\Lego\Saved\Screenshots\WindowsEditor'
-images = {}
+images = {}  # <masked_path, original_path>
 
 dataset_images_path = r'dataset/images'
 dataset_labels_path = r'dataset/labels'
@@ -23,30 +24,26 @@ dataset_labels_path = r'dataset/labels'
 
 def create_labels_file():
     lego_parts_df = pd.read_csv(csv_name)
-    legos = lego_parts_df[['---']]
+    legos = lego_parts_df[['---', 'fAvgArea']]
     i = 0
     with open('dataset\\labels\\labels.txt', "w") as labels_file:
         for index, row in legos.iterrows():
             # print(f"{i}: {row['---']}")
             labels_file.write(f"{i}: {row['---']}\n")
-            lego_id_dict[row['---']] = i
+            lego_2_yoloID_dict[row['---']] = i
+            lego_2_avg_area_dict[row['---']] = row['fAvgArea']
             i += 1
 
-    # string_foo = ""
-    # for item in lego_id_dict.keys():
-    #     string_foo += f"\"{item}\", "
-    # print(f"[{string_foo}]")
 
-
-def fill_colors_dict():
+def fill_csv_color_2_lego_dict():
     lego_parts_df = pd.read_csv(csv_name)
     legos = lego_parts_df[['---', 'UnlitColor']]
-    colors_dict[(0, 0, 0, 255)] = 0
+    csv_color_2_lego_dict[(0, 0, 0, 255)] = 0
     for index, row in legos.iterrows():
         color_components = row['UnlitColor'].strip("()").split(",")
         color_dict = {k: int(v) for k, v in (item.split("=") for item in color_components)}
         rgb_value = (color_dict['R'], color_dict['G'], color_dict['B'], 255)
-        colors_dict[rgb_value] = row['---']
+        csv_color_2_lego_dict[rgb_value] = row['---']
 
 
 def fill_images_dict():
@@ -56,21 +53,21 @@ def fill_images_dict():
             images[name] = [file_name.split('_')[0] + '_original.png', file_name]
 
 
-def fill_actual_colors_dict(input_image):
-    actual_colors_dict.clear()
+def fill_image_color_2_lego_dict(input_image):
+    image_color_2_lego_dict.clear()
     image_array = np.array(input_image)
     pixels = image_array.reshape(-1, image_array.shape[-1])
     unique_colors = np.unique(pixels, axis=0)
 
     for image_color in unique_colors:
         color_v = (int(image_color[0]), int(image_color[1]), int(image_color[2]), 255)
-        actual_colors_dict[color_v] = colors_dict[find_nearest_color(color_v)[0]]
+        image_color_2_lego_dict[color_v] = csv_color_2_lego_dict[find_nearest_color(color_v)[0]]
 
 
 def find_nearest_color(input_color):
     nearest_value = 1000
     nearest_color = None
-    for original_color in colors_dict.keys():
+    for original_color in csv_color_2_lego_dict.keys():
         distance = np.linalg.norm(np.array(input_color) - np.array(original_color))
         if distance < nearest_value:
             nearest_value = distance
@@ -86,11 +83,11 @@ def boxes_overlap(box1, box2):
 
 
 def distance_between_boxes(box1, box2):
-    if boxes_overlap(box1, box2):
+    if boxes_overlap(box1[0], box2[0]):
         return 0
 
-    x1_min, y1_min, x1_max, y1_max = box1
-    x2_min, y2_min, x2_max, y2_max = box2
+    x1_min, y1_min, x1_max, y1_max = box1[0]
+    x2_min, y2_min, x2_max, y2_max = box2[0]
 
     dx = max(0, max(x1_min, x2_min) - min(x1_max, x2_max))
     dy = max(0, max(y1_min, y2_min) - min(y1_max, y2_max))
@@ -99,28 +96,41 @@ def distance_between_boxes(box1, box2):
 
 
 def merge_boxes(box1, box2):
-    x1_min, y1_min, x1_max, y1_max = box1
-    x2_min, y2_min, x2_max, y2_max = box2
-
-    new_box = [min(x1_min, x2_min), min(y1_min, y2_min), max(x1_max, x2_max), max(y1_max, y2_max)]
+    x1_min, y1_min, x1_max, y1_max = box1[0]
+    x2_min, y2_min, x2_max, y2_max = box2[0]
+    print(f"merged {box1[1]} + {box2[1]} = {box1[1] + box2[1]}")
+    new_box = ([min(x1_min, x2_min), min(y1_min, y2_min), max(x1_max, x2_max), max(y1_max, y2_max)], box1[1] + box2[1])
     return new_box
 
 
-def merge_all_boxes_in_array(regions_array):
+def merge_all_boxes_in_array(regions_array, lego_id, debug_output_array):
     start_over = True
-    output_array = [item.bbox for item in regions_array]
+    output_array = [(item.bbox, item.area) for item in regions_array]
+
+    # print(f"avg area: {lego_2_avg_area_dict[lego_id]}")
 
     while start_over:
         start_over = False
         for i in range(len(output_array)):
             for j in range(i + 1, len(output_array)):
-                distance = distance_between_boxes(output_array[i], output_array[j])
-                if distance < 15:
-                    box1 = output_array[i]
-                    box2 = output_array.pop(j)
-                    output_array[i] = merge_boxes(box1, box2)
-                    start_over = True
-                    break
+                if (output_array[i][1] < 0.5 * lego_2_avg_area_dict[lego_id] or
+                        output_array[j][1] < 0.5 * lego_2_avg_area_dict[lego_id]):
+
+                    distance = distance_between_boxes(output_array[i], output_array[j])
+
+                    if distance < 15:
+                        if output_array[i][1] + output_array[j][1] > 0.9 * lego_2_avg_area_dict[lego_id]:
+                            continue
+                        box1 = output_array[i]
+                        box2 = output_array.pop(j)
+
+                        print(f"{lego_id} (avg: {lego_2_avg_area_dict[lego_id]}):")
+                        output_array[i] = merge_boxes(box1, box2)
+                        print(f"{output_array[i][1] / lego_2_avg_area_dict[lego_id]}")
+                        x1_min, y1_min, x1_max, y1_max = output_array[i][0]
+                        cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 3)
+                        start_over = True
+                        break
             if start_over:
                 break
     return output_array
@@ -133,11 +143,11 @@ def create_YOLO_string(region, region_color):
     yolo_center_y = (x1_min + x1_max) / 2 / height
     yolo_width = (y1_max - y1_min) / width
     yolo_height = (x1_max - x1_min) / height
-    return f"{lego_id_dict[actual_colors_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    return f"{lego_2_yoloID_dict[image_color_2_lego_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
 
 
 if __name__ == '__main__':
-    fill_colors_dict()
+    fill_csv_color_2_lego_dict()
     fill_images_dict()
     create_labels_file()
 
@@ -152,14 +162,15 @@ if __name__ == '__main__':
         debug_image = Image.open(images_path + '\\' + original)
         debug_output_array = np.array(debug_image)
 
-        fill_actual_colors_dict(image)
+        fill_image_color_2_lego_dict(image)
 
         # create file with labels
         with open('dataset\\labels\\' + original.split('.')[0] + '.txt', "w") as file:
 
             # for all colors in the image
-            for color in actual_colors_dict.keys():
-                if color == (0, 0, 0, 255):
+            for color in image_color_2_lego_dict.keys():
+                current_lego_id = image_color_2_lego_dict[color]
+                if current_lego_id == 0:
                     continue
 
                 # create mono mask for the color and find regions on it
@@ -168,16 +179,24 @@ if __name__ == '__main__':
                 regions = regionprops(label_image)
 
                 filtered_regions = [region for region in regions if region.area >= 30]
-                merged_array = merge_all_boxes_in_array(filtered_regions)
+                merged_array = merge_all_boxes_in_array(filtered_regions, current_lego_id, debug_output_array)
 
-                for region in merged_array:
+                for item in merged_array:
+                    if (item[1] > 3 * lego_2_avg_area_dict[current_lego_id] or
+                            item[1] < 0.4 * lego_2_avg_area_dict[current_lego_id]):
+                        # x1_min, y1_min, x1_max, y1_max = item[0]
+                        # cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 3)
+                        # print(f"removed {current_lego_id}, area: {item[1] / lego_2_avg_area_dict[current_lego_id]}")
+                        merged_array.remove(item)
+
+                for region, _ in merged_array:
                     file.write(create_YOLO_string(region, color))
 
                     # debug image draw bounding boxes
                     x1_min, y1_min, x1_max, y1_max = region
-                    cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 1)
+                    # cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
 
         debug_image.save('dataset\\images\\' + original)
         image1 = Image.fromarray(debug_output_array)
-        image1.show()
-        # image1.save("image_archive\\foo.png")
+        image1.show(title=original)
+        image1.save("image_archive\\merging_example_" + original)
