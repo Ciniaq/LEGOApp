@@ -98,16 +98,13 @@ def distance_between_boxes(box1, box2):
 def merge_boxes(box1, box2):
     x1_min, y1_min, x1_max, y1_max = box1[0]
     x2_min, y2_min, x2_max, y2_max = box2[0]
-    print(f"merged {box1[1]} + {box2[1]} = {box1[1] + box2[1]}")
     new_box = ([min(x1_min, x2_min), min(y1_min, y2_min), max(x1_max, x2_max), max(y1_max, y2_max)], box1[1] + box2[1])
     return new_box
 
 
-def merge_all_boxes_in_array(regions_array, lego_id, debug_output_array):
+def merge_all_boxes_in_array(regions_array, lego_id):
     start_over = True
     output_array = [(item.bbox, item.area) for item in regions_array]
-
-    # print(f"avg area: {lego_2_avg_area_dict[lego_id]}")
 
     while start_over:
         start_over = False
@@ -115,7 +112,6 @@ def merge_all_boxes_in_array(regions_array, lego_id, debug_output_array):
             for j in range(i + 1, len(output_array)):
                 if (output_array[i][1] < 0.5 * lego_2_avg_area_dict[lego_id] or
                         output_array[j][1] < 0.5 * lego_2_avg_area_dict[lego_id]):
-
                     distance = distance_between_boxes(output_array[i], output_array[j])
 
                     if distance < 15:
@@ -123,12 +119,7 @@ def merge_all_boxes_in_array(regions_array, lego_id, debug_output_array):
                             continue
                         box1 = output_array[i]
                         box2 = output_array.pop(j)
-
-                        print(f"{lego_id} (avg: {lego_2_avg_area_dict[lego_id]}):")
                         output_array[i] = merge_boxes(box1, box2)
-                        print(f"{output_array[i][1] / lego_2_avg_area_dict[lego_id]}")
-                        x1_min, y1_min, x1_max, y1_max = output_array[i][0]
-                        cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 3)
                         start_over = True
                         break
             if start_over:
@@ -179,14 +170,12 @@ if __name__ == '__main__':
                 regions = regionprops(label_image)
 
                 filtered_regions = [region for region in regions if region.area >= 30]
-                merged_array = merge_all_boxes_in_array(filtered_regions, current_lego_id, debug_output_array)
+                merged_array = merge_all_boxes_in_array(filtered_regions, current_lego_id)
 
+                # filter out regions that are too big or too small to relay on them
                 for item in merged_array:
                     if (item[1] > 3 * lego_2_avg_area_dict[current_lego_id] or
                             item[1] < 0.4 * lego_2_avg_area_dict[current_lego_id]):
-                        # x1_min, y1_min, x1_max, y1_max = item[0]
-                        # cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 3)
-                        # print(f"removed {current_lego_id}, area: {item[1] / lego_2_avg_area_dict[current_lego_id]}")
                         merged_array.remove(item)
 
                 for region, _ in merged_array:
@@ -194,9 +183,9 @@ if __name__ == '__main__':
 
                     # debug image draw bounding boxes
                     x1_min, y1_min, x1_max, y1_max = region
-                    # cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
+                    cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
 
         debug_image.save('dataset\\images\\' + original)
         image1 = Image.fromarray(debug_output_array)
         image1.show(title=original)
-        image1.save("image_archive\\merging_example_" + original)
+        # image1.save("image_archive\\merging_example_" + original)
