@@ -26,7 +26,7 @@ def create_labels_file():
     lego_parts_df = pd.read_csv(csv_name)
     legos = lego_parts_df[['---', 'fAvgArea']]
     i = 0
-    with open('dataset\\labels\\labels.txt', "w") as labels_file:
+    with open('dataset/labels.txt', "w") as labels_file:
         for index, row in legos.iterrows():
             # print(f"{i}: {row['---']}")
             labels_file.write(f"{i}: {row['---']}\n")
@@ -186,6 +186,6 @@ if __name__ == '__main__':
                     cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
 
         debug_image.save('dataset\\images\\' + original)
-        image1 = Image.fromarray(debug_output_array)
-        image1.show(title=original)
+        # image1 = Image.fromarray(debug_output_array)
+        # image1.show(title=original)
         # image1.save("image_archive\\merging_example_" + original)
