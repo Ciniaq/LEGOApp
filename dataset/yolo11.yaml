@@ -1,5 +1,5 @@
 path: D:\Pycharm\UnlitToBounds\dataset
-train: images/train
+train: images/single_type
 val: images/val
 
 names:

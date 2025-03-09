@@ -1,9 +1,9 @@
 from ultralytics import YOLO
 
 yaml_path = "D:\Pycharm\\UnlitToBounds\dataset\yolo11.yaml"
-model_path = "trained_model1.pt"
+model_path = "D:\Pycharm\\UnlitToBounds\\trained_model1.pt"
 
-model = YOLO("yolov8n.pt", task="detect")
+model = YOLO(model_path, task="detect")
 
 model.train(
     data=yaml_path,
