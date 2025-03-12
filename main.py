@@ -114,7 +114,7 @@ def merge_all_boxes_in_array(regions_array, lego_id):
                         output_array[j][1] < 0.5 * lego_2_avg_area_dict[lego_id]):
                     distance = distance_between_boxes(output_array[i], output_array[j])
 
-                    if distance < 15:
+                    if distance < 10:
                         if output_array[i][1] + output_array[j][1] > 0.9 * lego_2_avg_area_dict[lego_id]:
                             continue
                         box1 = output_array[i]
@@ -156,7 +156,7 @@ if __name__ == '__main__':
         fill_image_color_2_lego_dict(image)
 
         # create file with labels
-        with open('dataset\\labels\\' + original.split('.')[0] + '.txt', "w") as file:
+        with open('dataset\\labels\\train\\' + original.split('.')[0] + '.txt', "w") as file:
 
             # for all colors in the image
             for color in image_color_2_lego_dict.keys():
@@ -173,19 +173,25 @@ if __name__ == '__main__':
                 merged_array = merge_all_boxes_in_array(filtered_regions, current_lego_id)
 
                 # filter out regions that are too big or too small to relay on them
+                filtered_merged_array = []
                 for item in merged_array:
-                    if (item[1] > 3 * lego_2_avg_area_dict[current_lego_id] or
-                            item[1] < 0.4 * lego_2_avg_area_dict[current_lego_id]):
-                        merged_array.remove(item)
+                    if not (item[1] > 3 * lego_2_avg_area_dict[current_lego_id] or
+                            item[1] < 0.6 * lego_2_avg_area_dict[current_lego_id]):
+                        filtered_merged_array.append(item)
 
-                for region, _ in merged_array:
+                    # if current_lego_id == 54200:
+                    #     print(f"{item[1]} {lego_2_avg_area_dict[current_lego_id]}")
+
+                for region, _ in filtered_merged_array:
                     file.write(create_YOLO_string(region, color))
 
                     # debug image draw bounding boxes
                     x1_min, y1_min, x1_max, y1_max = region
                     cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
 
-        debug_image.save('dataset\\images\\' + original)
+        debug_image.save('dataset\\images\\train\\' + original)
+        image.save('dataset\\images\\masked\\' + masked)
         # image1 = Image.fromarray(debug_output_array)
         # image1.show(title=original)
+        # break
         # image1.save("image_archive\\merging_example_" + original)
