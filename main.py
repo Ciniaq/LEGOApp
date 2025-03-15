@@ -1,3 +1,4 @@
+import json
 import math
 import os
 
@@ -20,6 +21,14 @@ images = {}  # <masked_path, original_path>
 
 dataset_images_path = r'dataset/images'
 dataset_labels_path = r'dataset/labels'
+
+# coco
+coco_image_id = 1
+coco_image_data = []
+coco_annotations = []
+coco_categories = [
+    {"id": 1, "name": "lego"}
+]
 
 
 def create_labels_file():
@@ -134,7 +143,24 @@ def create_YOLO_string(region, region_color):
     yolo_center_y = (x1_min + x1_max) / 2 / height
     yolo_width = (y1_max - y1_min) / width
     yolo_height = (x1_max - x1_min) / height
-    return f"{lego_2_yoloID_dict[image_color_2_lego_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    # return f"{lego_2_yoloID_dict[image_color_2_lego_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    return f"{0} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+
+
+def add_COCO_annotation(region):
+    x1_min, y1_min, x1_max, y1_max = region
+    width = x1_max - x1_min
+    height = y1_max - y1_min
+    area = width * height
+
+    coco_annotations.append({
+        "id": len(coco_annotations) + 1,
+        "image_id": coco_image_id,
+        "category_id": 1,
+        "bbox": [y1_min, x1_min, height, width],
+        "area": area,
+        "iscrowd": 0
+    })
 
 
 if __name__ == '__main__':
@@ -145,7 +171,7 @@ if __name__ == '__main__':
     # for all images in the screenshot folder
     for key, (original, masked) in images.items():
         image = Image.open(images_path + '\\' + masked)
-        print(masked)
+        # print(masked)
         image_array = np.array(image)
         width, height = image.size
 
@@ -155,6 +181,13 @@ if __name__ == '__main__':
 
         fill_image_color_2_lego_dict(image)
 
+        coco_image_data.append({
+            "id": coco_image_id,
+            "file_name": original,
+            "width": 1920,
+            "height": 1080
+        })
+        print(f"{coco_image_id}/{len(images.items())}")
         # create file with labels
         with open('dataset\\labels\\train\\' + original.split('.')[0] + '.txt', "w") as file:
 
@@ -184,6 +217,7 @@ if __name__ == '__main__':
 
                 for region, _ in filtered_merged_array:
                     file.write(create_YOLO_string(region, color))
+                    add_COCO_annotation(region)
 
                     # debug image draw bounding boxes
                     x1_min, y1_min, x1_max, y1_max = region
@@ -191,7 +225,21 @@ if __name__ == '__main__':
 
         debug_image.save('dataset\\images\\train\\' + original)
         image.save('dataset\\images\\masked\\' + masked)
+        coco_image_id += 1
         # image1 = Image.fromarray(debug_output_array)
         # image1.show(title=original)
         # break
         # image1.save("image_archive\\merging_example_" + original)
+
+    coco_format_data = {
+        "images": coco_image_data,
+        "annotations": coco_annotations,
+        "categories": coco_categories
+    }
+
+    # Output file path
+    output_file_path = 'coco_dataset.json'
+
+    # Write to a JSON file
+    with open(output_file_path, 'w') as json_file:
+        json.dump(coco_format_data, json_file, indent=4)
