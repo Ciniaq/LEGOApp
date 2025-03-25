@@ -8,7 +8,8 @@ from ultralytics import YOLO
 
 # Load the trained model
 # model_path = "D:\Pycharm\\UnlitToBounds\\runs\\train2\\exp\\weights\\last.pt"
-model_path = "D:\Pycharm\\UnlitToBounds\\saved_model05.pt"
+# model_path = "D:\Pycharm\\UnlitToBounds\\saved_model05.pt"
+model_path = "D:\Pycharm\\UnlitToBounds\\yolo_find_lego_model.pt"
 model = YOLO(model_path, task="detect")
 detection_model = AutoDetectionModel.from_pretrained(
     model_type="ultralytics",
