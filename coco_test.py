@@ -6,7 +6,7 @@ import cv2
 from PIL import Image
 
 # Paths
-coco_json_path = "mini_coco_dataset.json_coco.json"
+coco_json_path = "mini_dataset/images/train/mini_coco_dataset.json_coco.json"
 image_dir = "mini_dataset/images/train"
 
 # Load COCO JSON

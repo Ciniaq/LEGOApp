@@ -2,8 +2,8 @@ import json
 import os
 
 # Paths
-coco_json_path = "mini_dataset/images/train/mini_coco_dataset.json_coco.json"
-output_yolo_dir = "mini_dataset/labels/train"
+coco_json_path = "medium_dataset/images/train/mini_coco_dataset.json_coco.json"
+output_yolo_dir = "medium_dataset/labels/train"
 
 # Load COCO JSON
 with open(coco_json_path, "r") as f:
