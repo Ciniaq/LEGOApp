@@ -34,9 +34,9 @@ def draw_yolo_bboxes(image_path, label_path, class_names):
 
 
 # Example Usage
-file_name = "9-143052_original"
-image_path = f"dataset/images/train/{file_name}.png"
-label_path = f"dataset/labels/train/{file_name}.txt"
+file_name = "9-14314_original"
+image_path = f"dataset/images/val/{file_name}.png"
+label_path = f"dataset/full_labels/train/{file_name}.txt"
 class_names = ["0", "3001", "2431", "3003", "3004", "3002", "3005", "3009", "3010", "3020", "3021", "3022", "3023",
                "3031",
                "3034", "3037", "3039", "3040", "3045", "3062", "3068", "3069", "3460", "3622", "3659", "3660", "3665",

@@ -143,8 +143,8 @@ def create_YOLO_string(region, region_color):
     yolo_center_y = (x1_min + x1_max) / 2 / height
     yolo_width = (y1_max - y1_min) / width
     yolo_height = (x1_max - x1_min) / height
-    # return f"{lego_2_yoloID_dict[image_color_2_lego_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
-    return f"{0} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    return f"{lego_2_yoloID_dict[image_color_2_lego_dict[region_color]]} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
+    # return f"{0} {yolo_center_x:.6f} {yolo_center_y:.6f} {yolo_width:.6f} {yolo_height:.6f}\n"
 
 
 def add_COCO_annotation(region):
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         })
         print(f"{coco_image_id}/{len(images.items())}")
         # create file with labels
-        with open('dataset\\labels\\train\\' + original.split('.')[0] + '.txt', "w") as file:
+        with open('dataset\\full_labels\\train\\' + original.split('.')[0] + '.txt', "w") as file:
 
             # for all colors in the image
             for color in image_color_2_lego_dict.keys():
@@ -223,8 +223,8 @@ if __name__ == '__main__':
                     x1_min, y1_min, x1_max, y1_max = region
                     cv2.rectangle(debug_output_array, (y1_min, x1_min), (y1_max, x1_max), color, 2)
 
-        debug_image.save('dataset\\images\\train\\' + original)
-        image.save('dataset\\images\\masked\\' + masked)
+        # debug_image.save('dataset\\images\\train\\' + original)
+        # image.save('dataset\\images\\masked\\' + masked)
         coco_image_id += 1
         # image1 = Image.fromarray(debug_output_array)
         # image1.show(title=original)
