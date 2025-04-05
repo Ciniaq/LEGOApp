@@ -4,6 +4,7 @@ import threading
 import cv2
 import numpy as np
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
@@ -14,7 +15,7 @@ lock = threading.Lock()
 frame = None
 frame_gray = None
 processed = True
-overlay = np.zeros((1080, 1920, 3), dtype=np.uint8)
+overlay = np.zeros((1080, 1920), dtype=np.uint8)
 
 yolo_model_path = "D:\Pycharm\\UnlitToBounds\\yolo_find_lego_model.pt"
 yolo_model = YOLO(yolo_model_path, task="detect")
@@ -25,30 +26,22 @@ detection_model = AutoDetectionModel.from_pretrained(
     device='cuda:0',
 )
 
-# model_path = "../vit_lego_2_1_1.pth"
-# model = timm.create_model("vit_base_patch16_384", pretrained=False, num_classes=46)
-# model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-# transform = transforms.Compose([
-#     transforms.Resize((384, 384)),
-#     transforms.ToTensor(),
-#     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-# ])
-# with open('../idx_to_class.pkl', 'rb') as f:
-#     idx_to_class = pickle.load(f)
 with open("../class_to_idx.json", "r") as f:
     class_to_idx = json.load(f)
 idx_to_class = {v: k for k, v in class_to_idx.items()}
 transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1),
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
+    transforms.Normalize(mean=[0.5], std=[0.5]),
 ])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = models.resnet18(pretrained=False)
 model.fc = torch.nn.Linear(model.fc.in_features, len(idx_to_class))
-model.load_state_dict(torch.load("../resnet_epoch_5.pth", map_location=device))
+model.conv1 = nn.Conv2d(1, model.conv1.out_channels, kernel_size=model.conv1.kernel_size, stride=model.conv1.stride,
+                        padding=model.conv1.padding, bias=False)
+model.load_state_dict(torch.load("../resnet_grayscale_9.pth", map_location=device))
 model = model.to(device)
 model.eval()
 
@@ -106,15 +99,14 @@ def process_frame():
                     probabilities = torch.nn.functional.softmax(outputs, dim=1)
                     confidence, predicted = torch.max(probabilities, 1)
                     confidence_predicted = confidence.item() * 100
-                    if confidence_predicted > 60:
-                        predicted_class = idx_to_class[predicted.item()]
-                        cv2.putText(overlay, f"{predicted_class} {confidence_predicted:.2f}%",
-                                    (int(bbox.minx), int(bbox.miny),),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1, (255, 0, 255), 1)
-                        cv2.rectangle(overlay, (int(bbox.minx), int(bbox.miny)), (int(bbox.maxx), int(bbox.maxy)),
-                                      (0, 255, 0),
-                                      2)
+                    predicted_class = idx_to_class[predicted.item()]
+                    cv2.putText(overlay, f"{predicted_class} {confidence_predicted:.2f}%",
+                                (int(bbox.minx), int(bbox.miny - 2),),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, 255, 2)
+                    cv2.rectangle(overlay, (int(bbox.minx), int(bbox.miny)), (int(bbox.maxx), int(bbox.maxy)),
+                                  255,
+                                  2)
             processed = True
 
 
@@ -148,14 +140,15 @@ if __name__ == '__main__':
                 diff = cv2.absdiff(frame_gray, gray)
                 _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
                 diff = cv2.absdiff(frame_gray, gray)
-                if cv2.countNonZero(thresh) > 8000:
+                if cv2.countNonZero(thresh) > 20000:
+                    print(cv2.countNonZero(thresh))
                     frame_gray = gray
                     frame = new_frame.copy()
                     print("Frame updated")
                     processed = False
             lock.release()
 
-        blended = cv2.addWeighted(new_frame, 1, overlay, 1, 1)
+        blended = cv2.addWeighted(new_frame, 1, cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR), 1, 0)
 
         cv2.imshow("LegoDetection", blended)
 
