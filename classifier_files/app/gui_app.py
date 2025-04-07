@@ -42,7 +42,7 @@ transform = transforms.Compose([
 ])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = models.resnet18(pretrained=False)
+model = models.resnet50(pretrained=False)
 model.fc = torch.nn.Linear(model.fc.in_features, len(idx_to_class))
 model.conv1 = nn.Conv2d(1, model.conv1.out_channels, kernel_size=model.conv1.kernel_size, stride=model.conv1.stride,
                         padding=model.conv1.padding, bias=False)
@@ -118,9 +118,9 @@ def resize_and_pad_image(cropped_img, target_size=224):
     return padded_img
 
 
-def process_frame():
+def process_frame(stop_event):
     global frame, overlay, processed, found_legos
-    while True:
+    while not stop_event.is_set():
         with lock:
             if frame is None:
                 continue
@@ -151,7 +151,8 @@ def process_frame():
                     confidence, predicted = torch.max(probabilities, 1)
                     confidence_predicted = confidence.item() * 100
                     predicted_class = idx_to_class[predicted.item()]
-                    found_legos.add(Lego_object(bbox, predicted_class, confidence_predicted))
+                    if confidence_predicted > 60:
+                        found_legos.add(Lego_object(bbox, predicted_class, confidence_predicted))
             processed = True
 
 
@@ -186,7 +187,8 @@ class CameraApp(QWidget):
         self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        self.processing_frame_thread = threading.Thread(target=process_frame)
+        self.stop_event = threading.Event()
+        self.processing_frame_thread = threading.Thread(target=process_frame, args=(self.stop_event,))
         self.processing_frame_thread.daemon = True
         self.processing_frame_thread.start()
 
@@ -269,7 +271,9 @@ class CameraApp(QWidget):
         overlay.fill(0)
 
     def closeEvent(self, event):
-        self.cap.release()  # Release the camera when the app is closed
+        self.stop_event.set()
+        self.processing_frame_thread.join()
+        self.cap.release()
         event.accept()
 
 
