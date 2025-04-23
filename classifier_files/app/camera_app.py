@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script captures frames from a webcam, detects objects using a YOLO model,
+# Used for manual tests.
+#
+###########################################################################
+
 import json
 import threading
 

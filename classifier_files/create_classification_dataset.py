@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script creates classification dataset from YOLO annotations.
+# It crops the images based on the YOLO annotations and resizes them to a fixed size.
+#
+###########################################################################
+
 import os
 
 import cv2

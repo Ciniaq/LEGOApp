@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script continues training a ViT classification model
+# after it failed or was interrupted.
+#
+###########################################################################
+
 import datetime
 
 import timm
@@ -6,7 +13,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
 
-# Load the saved model
 model_path = "vit_lego_2.pth"
 model = timm.create_model("vit_base_patch16_384", pretrained=True, num_classes=46)
 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
@@ -27,7 +33,6 @@ val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
 
-# Continue training
 num_epochs = 10
 for epoch in range(num_epochs):
     print(epoch)

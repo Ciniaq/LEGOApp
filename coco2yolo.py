@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script translates coco format annotations to YOLO format.
+# Creates labels file for all images.
+#
+###########################################################################
+
 import json
 import os
 

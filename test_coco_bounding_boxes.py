@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script displays bounding boxes on a sliced image using COCO format labels.
+# Used for manual validation of bounding boxes and in general COCO format.
+#
+###########################################################################
+
 import json
 import os
 import random
@@ -5,15 +12,12 @@ import random
 import cv2
 from PIL import Image
 
-# Paths
 coco_json_path = "mini_dataset/images/train/mini_coco_dataset.json_coco.json"
 image_dir = "mini_dataset/images/train"
 
-# Load COCO JSON
 with open(coco_json_path, "r") as f:
     coco_data = json.load(f)
 
-# Process each annotation
 for img in coco_data["images"]:
     img_id = img["id"]
     img_width = img["width"]
@@ -22,6 +26,9 @@ for img in coco_data["images"]:
 
     image_path = os.path.join(image_dir, img_filename)
     img = cv2.imread(image_path)
+    if img is None:
+        print(f"Image not found: {image_path}")
+        continue
 
     for ann in coco_data["annotations"]:
         if ann["image_id"] == img_id:

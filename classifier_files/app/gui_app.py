@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script creates a GUI application that uses a YOLO model to detect LEGO objects,
+# and ResNet for classification in a video stream from a camera.
+#
+###########################################################################
+
 import json
 import sys
 import threading

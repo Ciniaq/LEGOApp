@@ -1,3 +1,9 @@
+###########################################################################
+#
+# This script splits a dataset into training and validation sets. (classification dataset)
+#
+###########################################################################
+
 import os
 import random
 import shutil

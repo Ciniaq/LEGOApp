@@ -1,3 +1,11 @@
+###########################################################################
+#
+# This script slices a COCO dataset into smaller images.
+# Needed for creating a dataset for training a YOLOv8 model,
+# that has smaller images then original.
+#
+###########################################################################
+
 from sahi.slicing import slice_coco
 
 coco_dict, coco_path = slice_coco(

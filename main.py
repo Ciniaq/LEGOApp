@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script creates a dataset in YOLO and COCO formats from images
+# (segmentation masks) taken in Unreal Engine.
+#
+###########################################################################
+
 import json
 import math
 import os

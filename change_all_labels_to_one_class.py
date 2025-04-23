@@ -1,3 +1,10 @@
+###########################################################################
+#
+# Script modifies the labels of the dataset to be one class (0)
+# Needed for training a YOLO model for detection.
+#
+###########################################################################
+
 import os
 
 source_val_labels_path = "D:\Pycharm\\UnlitToBounds\\dataset\\labels\\val"

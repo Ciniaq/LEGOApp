@@ -1,3 +1,9 @@
+###########################################################################
+#
+# This script trains a ResNet classification model
+#
+###########################################################################
+
 import json
 import sys
 
@@ -70,7 +76,8 @@ for epoch in range(num_epochs):
         sys.stdout.flush()
 
     print(f"\nEpoch {epoch + 1}, Loss: {running_loss / total_batches:.4f}")
-    torch.save(model.state_dict(), f"resnet_grayscale_augm_{epoch + 1}.pth")  # Zapis modelu po kaĹĽdej epoce
+    # Zapis modelu po kazdej epoce jakby mial sie w trakcie wywalic
+    torch.save(model.state_dict(), f"resnet_grayscale_augm_{epoch + 1}.pth")
 
 model.eval()
 correct = 0

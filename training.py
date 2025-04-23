@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script trains a YOLOv8 model for object detection using a custom dataset.
+# The trained model is saved to the specified path after training.
+#
+###########################################################################
+
 from ultralytics import YOLO
 
 yaml_path = "/home/macierz/s180439/mini_dataset/mini_dataset/yolo11.yaml"
