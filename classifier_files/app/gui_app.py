@@ -139,6 +139,8 @@ def process_frame(stop_event):
             print(len(results.object_prediction_list))
             found_legos.clear()
             for prediction in results.object_prediction_list:
+                if processed:
+                    break
                 bbox = prediction.bbox
                 cropped = frame[int(bbox.miny):int(bbox.maxy), int(bbox.minx):int(bbox.maxx)]
                 ready_image = resize_and_pad_image(cropped)
@@ -246,6 +248,13 @@ class CameraApp(QWidget):
                         print("Frame updated")
                         processed = False
                 lock.release()
+            elif not processed:
+                gray = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
+                diff = cv2.absdiff(frame_gray, gray)
+                _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+                if cv2.countNonZero(thresh) > 20000:
+                    print("force break")
+                    processed = True
             blended = cv2.addWeighted(new_frame, 1, cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR), 1, 0)
             # Convert frame to QImage for displaying in QLabel
             rgb_frame = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
