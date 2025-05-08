@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PySide6.QtCore import QTimer, Qt, QSize
-from PySide6.QtGui import QImage, QPixmap, QIcon
+from PySide6.QtGui import QImage, QPixmap, QIcon, QMouseEvent
 from PySide6.QtWidgets import *
 from PySide6.QtWidgets import QSizePolicy
 from sahi import AutoDetectionModel
@@ -23,11 +23,14 @@ from sahi.predict import get_sliced_prediction
 from torchvision import models
 from ultralytics import YOLO
 
+from ClassifyPopup import ClassifyPopup
+
 lock = threading.Lock()
 frame = None
 frame_gray = None
 processed = True
 overlay = np.zeros((1080, 1920), dtype=np.uint8)
+freeze = False
 
 yolo_model_path = "D:\Pycharm\\UnlitToBounds\\yolo_find_lego_model.pt"
 yolo_model = YOLO(yolo_model_path, task="detect")
@@ -72,6 +75,8 @@ class Lego_object:
         cv2.rectangle(overlay, (int(self.bbox.minx), int(self.bbox.miny)), (int(self.bbox.maxx), int(self.bbox.maxy)),
                       255,
                       3)
+        print(
+            f"Coordinates: {int(self.bbox.minx)}, {int(self.bbox.miny)}, {int(self.bbox.maxx)}, {int(self.bbox.maxy)}")
 
 
 class Lego_manager:
@@ -98,6 +103,12 @@ class Lego_manager:
                 lego_object.draw()
         else:
             print(f"No objects found for class {class_id}")
+
+    def getLegoObject(self, x, y):
+        for lego_object in self.__lego_objects:
+            if lego_object.bbox.minx < x < lego_object.bbox.maxx and lego_object.bbox.miny < y < lego_object.bbox.maxy:
+                return lego_object
+        return None
 
 
 found_legos = Lego_manager()
@@ -165,6 +176,41 @@ def process_frame(stop_event):
             processed = True
 
 
+class ClickOverlay(QWidget):
+    def __init__(self, parent=None, size=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setStyleSheet("background-color: rgba(255, 0, 0, 1);")
+        self.resize(size)
+        self.content_size = size
+
+    def mousePressEvent(self, event: QMouseEvent):
+        x = event.position().x() - (self.size().width() - self.content_size.width()) / 2
+        y = event.position().y() - (self.size().height() - self.content_size.height()) / 2
+        image_size = (1080, 1920)
+        x_scaled = int(x * image_size[1] / self.content_size.width())
+        y_scaled = int(y * image_size[0] / self.content_size.height())
+        clicked_lego = found_legos.getLegoObject(x_scaled, y_scaled)
+        cropped_pixmap = None
+        if clicked_lego:
+            cropped_image = frame[int(clicked_lego.bbox.miny):int(clicked_lego.bbox.maxy),
+                            int(clicked_lego.bbox.minx):int(clicked_lego.bbox.maxx)]
+            cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+            cropped_image = np.ascontiguousarray(cropped_image)
+            height, width, channels = cropped_image.shape
+
+            cropped_pixmap = QPixmap.fromImage(
+                QImage(cropped_image.data, width, height, channels * width, QImage.Format_RGB888))
+        print(
+            f"Caught click at {clicked_lego.class_id if clicked_lego else 'None'}")
+        popup = ClassifyPopup(self, cropped_pixmap)
+        popup.show()
+
+    def setContentSize(self, content_size):
+        self.content_size = content_size
+
+
 class CameraApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -177,11 +223,15 @@ class CameraApp(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.label, 1)
 
+        self.click_overlay = ClickOverlay(self.label, self.label.size())
+        self.label.resizeEvent = lambda event: self.adjust_overlay()
+
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setFixedWidth(200)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_content = QWidget(self.scroll_area)
         self.scroll_layout = QVBoxLayout(self.scroll_content)
+        self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.scroll_content.setLayout(self.scroll_layout)
         self.scroll_area.setWidget(self.scroll_content)
         self.layout.addWidget(self.scroll_area, 0)
@@ -191,9 +241,13 @@ class CameraApp(QWidget):
         # self.button.clicked.connect(self.clearOverlay)
         # self.scroll_layout.addWidget(self.button)
 
+        self.freeze_button = QPushButton("Freeze", self.scroll_content)
+        self.freeze_button.clicked.connect(lambda: self.on_freeze_button_click())
+        self.scroll_layout.addWidget(self.freeze_button)
+
         self.setLayout(self.layout)
 
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(1)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         self.stop_event = threading.Event()
@@ -236,8 +290,10 @@ class CameraApp(QWidget):
                 self.add_button(class_id)
 
     def update_frame(self):
-        global frame, overlay, processed, frame_gray
+        global frame, overlay, processed, frame_gray, freeze
         ret, new_frame = self.cap.read()
+        if freeze:
+            new_frame = frame.copy()
         if ret:
             if lock.acquire(blocking=False):
                 if frame_gray is None:
@@ -263,7 +319,7 @@ class CameraApp(QWidget):
                     print("force break")
                     processed = True
             blended = cv2.addWeighted(new_frame, 1, cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR), 1, 0)
-            # Convert frame to QImage for displaying in QLabel
+
             rgb_frame = cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)
             height, width, channels = rgb_frame.shape
             q_img = QImage(rgb_frame.data, width, height, channels * width, QImage.Format_RGB888)
@@ -276,11 +332,20 @@ class CameraApp(QWidget):
             self.refresh_buttons()
 
             self.label.setPixmap(scaled_pixmap)
+            self.click_overlay.setContentSize(scaled_pixmap.size())
             self.label.setScaledContents(False)
+
+    def adjust_overlay(self):
+        if self.click_overlay:
+            self.click_overlay.resize(self.label.size())
 
     def on_button_click(self, class_id):
         self.clearOverlay()
         found_legos.draw_class(class_id)
+
+    def on_freeze_button_click(self):
+        global freeze
+        freeze = not freeze
 
     def clearOverlay(self):
         global overlay
