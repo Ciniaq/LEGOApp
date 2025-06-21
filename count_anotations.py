@@ -1,3 +1,11 @@
+###########################################################################
+#
+# This script counts annotations in YOLO format .txt files.
+# For statistical purposes.
+#
+###########################################################################
+
+
 import os
 
 labels_path = r'./dataset/full_labels/train'

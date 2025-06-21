@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script trains EfficientNet model for image classification.
+#
+###########################################################################
+
+
 import json
 import sys
 from collections import Counter

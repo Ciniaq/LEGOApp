@@ -1,3 +1,11 @@
+###########################################################################
+#
+# Creates confusion matrix for classification model,
+# counts metrics such as precision, recall, F1-score
+#
+###########################################################################
+
+
 import json
 
 import matplotlib.pyplot as plt

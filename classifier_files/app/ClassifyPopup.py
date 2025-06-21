@@ -1,3 +1,11 @@
+###########################################################################
+#
+# Popup window for classifying lego sets, displays cropped image and allows
+# user to save cropped image to the dataset folder
+#
+###########################################################################
+
+
 import json
 import os
 from datetime import datetime

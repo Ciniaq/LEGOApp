@@ -1,3 +1,10 @@
+###########################################################################
+#
+# This script evaluates a YOLO model on a validation dataset using the SAHI library.
+#
+###########################################################################
+
+
 import glob
 import json
 import os

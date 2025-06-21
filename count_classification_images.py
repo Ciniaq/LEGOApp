@@ -1,3 +1,11 @@
+###########################################################################
+#
+# This script counts the number of files in the train and validation directories
+# and calculates the average number of files per folder.
+#
+###########################################################################
+
+
 import os
 
 main_directory_path = r'/home/macierz/s180439/classifier_files/dataset224'

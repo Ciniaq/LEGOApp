@@ -1,3 +1,9 @@
+###########################################################################
+#
+# This script shows images with various transformations applied for analysis
+#
+###########################################################################
+
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from PIL import Image
