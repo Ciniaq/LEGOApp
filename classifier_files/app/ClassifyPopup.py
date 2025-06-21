@@ -1,4 +1,6 @@
 import json
+import os
+from datetime import datetime
 
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap, QIcon
@@ -10,22 +12,35 @@ idx_to_class = {v: k for k, v in class_to_idx.items()}
 
 
 class ClassifyPopup(QWidget):
-    def __init__(self, parent=None, croppedPixmap=None):
+    def __init__(self, parent=None, croppedPixmap=None, predicted_name=None):
         super().__init__(parent)
         self.setWindowTitle("Classify lego")
         self.setWindowFlag(Qt.WindowType.Window)
-        self.setFixedSize(750, 500)
+        self.setFixedSize(750, 550)
         self.setStyleSheet("background-color: white;")
+        self.clickedButtons = []
+        self.buttonWidgets = []
 
         self.main_layout = QVBoxLayout(self)
         self.grid_layout = QGridLayout()
         self.ok_layout = QHBoxLayout()
 
-        icon_label = QLabel()
+        self.predicted_name = predicted_name
+        self.textWidget = QLabel(f"Predicted lego is: {self.predicted_name}")
+        self.main_layout.addWidget(self.textWidget, alignment=Qt.AlignCenter)
+
+        self.icon_label = QLabel()
         if croppedPixmap:
-            icon_label.setPixmap(croppedPixmap.scaledToHeight(100))
-            icon_label.setAlignment(Qt.AlignCenter)
-            self.main_layout.addWidget(icon_label)
+            self.pixmap = croppedPixmap
+            self.icon_label.setPixmap(self.pixmap.scaledToHeight(100))
+            self.icon_label.setAlignment(Qt.AlignCenter)
+            self.main_layout.addWidget(self.icon_label)
+        else:
+            self.pixmap = None
+            self.icon_label.setPixmap(QPixmap("lego_icons/no_icon.jpg").scaledToHeight(100))
+            self.icon_label.setAlignment(Qt.AlignCenter)
+            self.icon_label.hide()
+            self.main_layout.addWidget(self.icon_label)
 
         self.ok_btn = QPushButton("OK")
         self.ok_btn.setFixedSize(100, 50)
@@ -39,17 +54,55 @@ class ClassifyPopup(QWidget):
         for index, legoId in enumerate(class_to_idx.keys()):
             self.addLegoButton(legoId, index // buttons_per_row, index % buttons_per_row)
 
-    def lego_button_clicked(self, name):
+    def showPopup(self, croppedPixmap=None, predicted_name=None):
+        self.clickedButtons.clear()
+        self.predicted_name = predicted_name
+        self.textWidget.setText(f"Predicted lego is: {self.predicted_name}")
+
+        if croppedPixmap:
+            self.pixmap = croppedPixmap
+            self.icon_label.setPixmap(croppedPixmap.scaledToHeight(100))
+            self.icon_label.show()
+        else:
+            self.pixmap = None
+            self.icon_label.hide()
+
+        for btn in self.buttonWidgets:
+            btn.setStyleSheet("background-color: white;")
+        self.show()
+
+    def lego_button_clicked(self, name, button):
         print(f"{name} clicked")
+        if name in self.clickedButtons:
+            self.clickedButtons.remove(name)
+            button.setStyleSheet("background-color: white;")
+        else:
+            self.clickedButtons.append(name)
+            button.setStyleSheet("background-color: green;")
 
     def ok_button_clicked(self):
-        print(f"ok clicked")
-        self.close()
+        if self.pixmap:
+            mainDatasetFolder = "./appDataset"
+            if not os.path.exists(mainDatasetFolder):
+                os.makedirs(mainDatasetFolder)
+            for legoType in self.clickedButtons:
+                legoFolder = os.path.join(mainDatasetFolder, legoType)
+                if not os.path.exists(legoFolder):
+                    os.makedirs(legoFolder)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                self.pixmap.save(os.path.join(legoFolder, f"{timestamp}.png"))
+            print(f"ok clicked, clicked buttons: {self.clickedButtons}")
+        else:
+            print("no pixmap, clicked buttons: ", self.clickedButtons)
+        # self.close()
+        self.hide()
 
     def addLegoButton(self, legoId, row, column):
         btn = QPushButton(legoId)
-        btn.clicked.connect(lambda: self.lego_button_clicked(legoId))
+        btn.clicked.connect(lambda: self.lego_button_clicked(legoId, btn))
         btn.setFixedSize(100, 50)
+        # if legoId == self.predicted_name:
+        #     btn.setStyleSheet("color: red;")
 
         pixmap = None
         try:
@@ -59,4 +112,5 @@ class ClassifyPopup(QWidget):
         btn.setIcon(QIcon(pixmap))
         btn.setIconSize(QSize(40, 40))
 
+        self.buttonWidgets.append(btn)
         self.grid_layout.addWidget(btn, row, column)

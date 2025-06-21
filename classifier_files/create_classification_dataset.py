@@ -9,10 +9,10 @@ import os
 
 import cv2
 
-dataset_path = "D:\\Pycharm\\UnlitToBounds\\dataset"
-main_output_folder = "D:\\Pycharm\\UnlitToBounds\\classifier_files\\dataset"
-labels_path = "D:\\Pycharm\\UnlitToBounds\\dataset\\full_labels\\train"
-images_path = "D:\\Pycharm\\UnlitToBounds\\dataset\\images\\all"
+main_output_folder = "/home/macierz/s180439/close/dataset_close_class/train"
+labels_path = "/home/macierz/s180439/close/dataset_close/labels/train"
+images_path = "/home/macierz/s180439/close/dataset_close/images/train"
+labels_file_path = "/home/macierz/s180439/close/dataset_close/labels.txt"
 yoloID_2_legoID_dict = {}  # <yolo_id, lego_id>
 
 
@@ -57,7 +57,7 @@ def resize_and_pad_image(cropped_img, target_size=384):
     return padded_img
 
 
-def process_image(image_path, annotations_path, main_output_folder):
+def process_image(image_path, annotations_path, main_output_folder, file_name_with_png):
     img = cv2.imread(image_path)
     img_height, img_width, _ = img.shape
 
@@ -67,7 +67,7 @@ def process_image(image_path, annotations_path, main_output_folder):
         current_sub_folder = f"{main_output_folder}/{str(yoloID_2_legoID_dict[class_id])}"
         os.makedirs(current_sub_folder, exist_ok=True)
 
-        file_name = image_path.split("\\")[-1].split(".")[0]
+        file_name = file_name_with_png.split(".")[0]
 
         cropped_img = img[y_min:y_max, x_min:x_max]
         processed_img = resize_and_pad_image(cropped_img)
@@ -77,7 +77,6 @@ def process_image(image_path, annotations_path, main_output_folder):
 
 
 def init_dict():
-    labels_file_path = "../dataset/labels.txt"
     with open(labels_file_path, "r") as labels_file:
         for line in labels_file:
             yolo_id, lego_id = line.strip().split(":")
@@ -90,7 +89,7 @@ if __name__ == '__main__':
     for file_name in os.listdir(images_path):
         image_path = os.path.join(images_path, file_name)
         annotations_path = os.path.join(labels_path, file_name.replace(".png", ".txt"))
-        process_image(image_path, annotations_path, main_output_folder)
+        process_image(image_path, annotations_path, main_output_folder, file_name)
         print(f"{counter}/{len(os.listdir(images_path))}")
         counter += 1
         # break

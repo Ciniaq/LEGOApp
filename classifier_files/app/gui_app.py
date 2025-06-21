@@ -75,8 +75,8 @@ class Lego_object:
         cv2.rectangle(overlay, (int(self.bbox.minx), int(self.bbox.miny)), (int(self.bbox.maxx), int(self.bbox.maxy)),
                       255,
                       3)
-        print(
-            f"Coordinates: {int(self.bbox.minx)}, {int(self.bbox.miny)}, {int(self.bbox.maxx)}, {int(self.bbox.maxy)}")
+        # print(
+        #     f"Coordinates: {int(self.bbox.minx)}, {int(self.bbox.miny)}, {int(self.bbox.maxx)}, {int(self.bbox.maxy)}")
 
 
 class Lego_manager:
@@ -103,6 +103,10 @@ class Lego_manager:
                 lego_object.draw()
         else:
             print(f"No objects found for class {class_id}")
+
+    def draw_all(self):
+        for lego_object in self.__lego_objects:
+            lego_object.draw()
 
     def getLegoObject(self, x, y):
         for lego_object in self.__lego_objects:
@@ -144,8 +148,9 @@ def process_frame(stop_event):
                 continue
             if processed:
                 continue
-
+            print("Processing frame...")
             overlay.fill(0)
+            print("Start predictions...")
             results = get_sliced_prediction(
                 frame,
                 detection_model,
@@ -154,10 +159,11 @@ def process_frame(stop_event):
                 overlap_height_ratio=0.2,
                 overlap_width_ratio=0.2,
             )
-            print(len(results.object_prediction_list))
+            print("Prediction finished, analizyng results...")
             found_legos.clear()
             for prediction in results.object_prediction_list:
                 if processed:
+                    # forced break occurred
                     break
                 bbox = prediction.bbox
                 cropped = frame[int(bbox.miny):int(bbox.maxy), int(bbox.minx):int(bbox.maxx)]
@@ -173,7 +179,10 @@ def process_frame(stop_event):
                     predicted_class = idx_to_class[predicted.item()]
                     if confidence_predicted > 60:
                         found_legos.add(Lego_object(bbox, predicted_class, confidence_predicted))
+                    else:
+                        found_legos.add(Lego_object(bbox, "Unknown", confidence_predicted))
             processed = True
+            print("Frame processed")
 
 
 class ClickOverlay(QWidget):
@@ -184,6 +193,7 @@ class ClickOverlay(QWidget):
         self.setStyleSheet("background-color: rgba(255, 0, 0, 1);")
         self.resize(size)
         self.content_size = size
+        self.popup = None
 
     def mousePressEvent(self, event: QMouseEvent):
         x = event.position().x() - (self.size().width() - self.content_size.width()) / 2
@@ -197,15 +207,19 @@ class ClickOverlay(QWidget):
             cropped_image = frame[int(clicked_lego.bbox.miny):int(clicked_lego.bbox.maxy),
                             int(clicked_lego.bbox.minx):int(clicked_lego.bbox.maxx)]
             cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+            cropped_image = resize_and_pad_image(cropped_image)
             cropped_image = np.ascontiguousarray(cropped_image)
             height, width, channels = cropped_image.shape
 
             cropped_pixmap = QPixmap.fromImage(
                 QImage(cropped_image.data, width, height, channels * width, QImage.Format_RGB888))
-        print(
-            f"Caught click at {clicked_lego.class_id if clicked_lego else 'None'}")
-        popup = ClassifyPopup(self, cropped_pixmap)
-        popup.show()
+        # print(
+        #     f"Caught click at {clicked_lego.class_id if clicked_lego else 'None'}")
+        if self.popup:
+            self.popup.showPopup(cropped_pixmap, clicked_lego.class_id if clicked_lego else 'None')
+        else:
+            self.popup = ClassifyPopup(self, cropped_pixmap, clicked_lego.class_id if clicked_lego else 'None')
+            self.popup.show()
 
     def setContentSize(self, content_size):
         self.content_size = content_size
@@ -241,13 +255,17 @@ class CameraApp(QWidget):
         # self.button.clicked.connect(self.clearOverlay)
         # self.scroll_layout.addWidget(self.button)
 
-        self.freeze_button = QPushButton("Freeze", self.scroll_content)
+        self.freeze_button = QPushButton("Freeze camera", self.scroll_content)
         self.freeze_button.clicked.connect(lambda: self.on_freeze_button_click())
         self.scroll_layout.addWidget(self.freeze_button)
 
+        self.show_all = QPushButton("Show all predictions", self.scroll_content)
+        self.show_all.clicked.connect(lambda: self.on_lego_click("all"))
+        self.scroll_layout.addWidget(self.show_all)
+
         self.setLayout(self.layout)
 
-        self.cap = cv2.VideoCapture(1)
+        self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         self.stop_event = threading.Event()
@@ -269,12 +287,12 @@ class CameraApp(QWidget):
         icon = QIcon(pixmap)
         button.setIcon(icon)
         button.setIconSize(QSize(50, 50))
-        button.clicked.connect(lambda: self.on_button_click(class_id))
+        button.clicked.connect(lambda: self.on_lego_click(class_id))
         self.scroll_layout.addWidget(button)
         self.buttons.append(button)
 
     def refresh_buttons(self):
-        global found_legos
+        global found_legos, processed
         classes = found_legos.get_classes()
         buttonsToDelete = []
         for button in self.buttons:
@@ -288,6 +306,8 @@ class CameraApp(QWidget):
         for class_id in classes:
             if not any(button.property("class_id") == class_id for button in self.buttons):
                 self.add_button(class_id)
+        if len(classes) == 0:
+            processed = False
 
     def update_frame(self):
         global frame, overlay, processed, frame_gray, freeze
@@ -305,7 +325,7 @@ class CameraApp(QWidget):
                     diff = cv2.absdiff(frame_gray, gray)
                     _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
                     if cv2.countNonZero(thresh) > 20000:
-                        print(cv2.countNonZero(thresh))
+                        # print(cv2.countNonZero(thresh))
                         frame_gray = gray
                         frame = new_frame.copy()
                         print("Frame updated")
@@ -316,7 +336,7 @@ class CameraApp(QWidget):
                 diff = cv2.absdiff(frame_gray, gray)
                 _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
                 if cv2.countNonZero(thresh) > 20000:
-                    print("force break")
+                    # print(f"force break {cv2.countNonZero(thresh)}")
                     processed = True
             blended = cv2.addWeighted(new_frame, 1, cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR), 1, 0)
 
@@ -339,13 +359,17 @@ class CameraApp(QWidget):
         if self.click_overlay:
             self.click_overlay.resize(self.label.size())
 
-    def on_button_click(self, class_id):
+    def on_lego_click(self, class_id):
         self.clearOverlay()
-        found_legos.draw_class(class_id)
+        if class_id == "all":
+            found_legos.draw_all()
+        else:
+            found_legos.draw_class(class_id)
 
     def on_freeze_button_click(self):
         global freeze
         freeze = not freeze
+        self.freeze_button.setStyleSheet("background-color: blue;" if freeze else "background-color: white;")
 
     def clearOverlay(self):
         global overlay
