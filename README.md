@@ -1,9 +1,3 @@
-## License Notice
-
-This project includes files from **The LDraw Parts Library**, licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) / [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See [ldraw.org](https://www.ldraw.org/legal-info) for details.
-
----
-
 ## Adding new LDraw models to Unreal Engine
 
 To add new models from the LDraw library to the Unreal Engine project:
@@ -41,3 +35,9 @@ To improve segmentation masks:
 - Create a separate mask for each brick type, by hidding other classes.
 - Calculate what percentage of each brick is visible in the final scene.
 - This approach enables the generation of better masks and, consequently, more accurate bounding boxes.
+
+---
+
+## License Notice
+
+This project includes files from **The LDraw Parts Library**, licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) / [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See [ldraw.org](https://www.ldraw.org/legal-info) for details.
