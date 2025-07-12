@@ -32,7 +32,7 @@ processed = True
 overlay = np.zeros((1080, 1920), dtype=np.uint8)
 freeze = False
 
-yolo_model_path = "D:\Pycharm\\UnlitToBounds\\yolo_find_lego_model.pt"
+yolo_model_path = "D:\Pycharm\\UnlitToBounds\\models\\yolo_find_lego_model.pt"
 yolo_model = YOLO(yolo_model_path, task="detect")
 detection_model = AutoDetectionModel.from_pretrained(
     model_type="ultralytics",
@@ -41,7 +41,7 @@ detection_model = AutoDetectionModel.from_pretrained(
     device='cuda:0',
 )
 
-with open("../class_to_idx.json", "r") as f:
+with open("D:\Pycharm\\UnlitToBounds\\ClassificationEvaluationDataset\\class_to_idx.json", "r") as f:
     class_to_idx = json.load(f)
 idx_to_class = {v: k for k, v in class_to_idx.items()}
 transform = transforms.Compose([
@@ -56,7 +56,10 @@ model = models.resnet50(pretrained=False)
 model.fc = torch.nn.Linear(model.fc.in_features, len(idx_to_class))
 model.conv1 = nn.Conv2d(1, model.conv1.out_channels, kernel_size=model.conv1.kernel_size, stride=model.conv1.stride,
                         padding=model.conv1.padding, bias=False)
-model.load_state_dict(torch.load("../resnet_grayscale_augm_16.pth", map_location=device))
+# model.load_state_dict(torch.load("../resnet_grayscale_augm_16.pth", map_location=device))
+model.load_state_dict(
+    torch.load("D:\Pycharm\\UnlitToBounds\\classifier_files\\models\\resnet_grayscale_only_close_clear-35.pth",
+               map_location=device))
 model = model.to(device)
 model.eval()
 
@@ -324,7 +327,7 @@ class CameraApp(QWidget):
                     gray = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
                     diff = cv2.absdiff(frame_gray, gray)
                     _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-                    if cv2.countNonZero(thresh) > 20000:
+                    if cv2.countNonZero(thresh) > 100000:
                         # print(cv2.countNonZero(thresh))
                         frame_gray = gray
                         frame = new_frame.copy()
